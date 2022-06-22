@@ -403,11 +403,11 @@ Come ci si poteva aspettare, in cima alla classifica troviamo i Paesi scandinavi
 
 ## Uno sguardo all'Italia
 
-L'Italia, nella storia delle Olimpiadi esive, ha ottenuto 492 ori, 467 argenti e 425 bronzi.
+L'Italia, nella storia delle Olimpiadi esive, ha ottenuto 518 ori, 474 argenti e 454 bronzi.
 
 ```{r}
-medals_it = data_events%>%
-  filter(!is.na(Medal),Team=='Italy',Season=='Summer') %>%
+medals_it = data_events%>%left_join(data_team, by=c("NOC"="NOC")) %>%
+  filter(!is.na(Medal),region=='Italy',Season=='Summer') %>%
   group_by(Medaglia=Medal) %>%
   summarise(Totale=n()) %>%
   arrange(-Totale)
@@ -424,11 +424,11 @@ ggplot(medals_it, aes(Medaglia, Totale, fill=Medaglia)) +
 ```
 
 
-Alle Olimpiadi invernali, invece, l'Italia ha ottenuto 43 ori, 41 argenti e 59 bronzi.
+Alle Olimpiadi invernali, invece, l'Italia ha ottenuto 57 ori, 57 argenti e 77 bronzi.
 
 ```{r}
-medals_itw = data_events%>%
-  filter(!is.na(Medal), Team=='Italy', Season=='Winter') %>%
+medals_it = data_events%>%left_join(data_team, by=c("NOC"="NOC")) %>%
+  filter(!is.na(Medal),region=='Italy',Season=='Winter') %>%
   group_by(Medaglia=Medal) %>%
   summarise(Totale=n()) %>%
   arrange(-Totale)
