@@ -721,7 +721,6 @@ height_ht <- data_events%>%
   filter(!is.na(Medal),Season=='Summer')%>%group_by(Sex,Sport)%>%
   summarize(Height=round(max(Height,na.rm = TRUE),0))%>%
   arrange(desc(Height))
-height_ht <- height_ht[-c(78:87),]
 
 height_max <- data_events%>%filter(!is.na(Medal),Season=="Summer")%>%
   right_join(height_ht,by=c("Sex","Sport","Height"))
