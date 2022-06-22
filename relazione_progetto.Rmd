@@ -23,7 +23,7 @@ Nelle seguenti analisi ho preso in considerazione tutti i Giochi Olimpici da Ate
 
 Le Olimpiadi sono cresciute così tanto che quasi tutte le nazioni sono ora rappresentate.
 I Giochi si svolgono ogni 4 anni sia per quelli estivi che per quelli invernali.
-Le Olimpiadi estive sono nate nel 1896 ad Atene, mentre quelle invernali sono iniziate nel 1924 a Chamonix (Francia)
+Le Olimpiadi estive sono nate nel 1896 ad Atene, mentre quelle invernali sono iniziate nel 1924 a Chamonix (Francia).
 
 Oltre ad offrire ad atleti di tutto il mondo la possibilità di raggiungere una fama internazionale, i Giochi costituiscono anche un'opportunità per la città e il Paese ospitanti di mostrarsi al mondo.
 
@@ -324,41 +324,6 @@ ggplot(medals, aes(region, total, color=region, fill=region)) +
 
 ```
 
-
-```{r}
-
-# Il numero totale di medaglie vinte da ciascun Team
-medalCounts <- data_events %>% filter(!is.na(Medal)) %>% 
-  group_by(NOC, Medal, Event, Games) %>%
-  summarize(isMedal=1)
-medalCounts <- medalCounts %>% 
-  group_by(NOC, Medal) %>%
-  summarize(Count= sum(isMedal))
-medalCounts <- left_join(medalCounts,data_team, by= "NOC")
-medalCounts <- medalCounts %>% 
-  mutate (Team = region)
-medalCounts <- medalCounts %>% select( Medal, Team, Count)
-
-# Ordino i Team per numero di medaglie vinte
-levelsTeam <- medalCounts %>%
-  group_by(Team) %>%
-  summarize(Total=sum(Count)) %>%
-  arrange(desc(Total)) %>%
-  select(Team) %>%
-  slice(30:1)
-medalCounts$Team <- factor(medalCounts$Team, levels=levelsTeam$Team)
-medalCounts <- medalCounts %>% filter(Team != "NA")
-
-ggplot(medalCounts, aes(x=Team, y=Count, fill=Medal)) +
-  geom_col() +
-  coord_flip() +
-  scale_fill_manual(values=c("gold3","gray64","sienna")) +
-  xlab("Paese")+ylab("Medaglie")+
-  theme(axis.text = element_text(size = 8, face = "bold"),
-        plot.title = element_text(size = 16, face = "bold")) + 
-  ggtitle("I migliori vincitori di medaglie per Paese", 
-          subtitle= "Olimpiadi estive dal 1896 al 2016") 
-```
 
 Gli Stati Uniti sono i migliori in assoluto nella storia dei Giochi Olimpici, con oltre 5000 medaglie vinte in varie categorie sportive. Seguono Russia, Germania, Regno Unito e Francia.
 L'Italia si trova al sesto posto con un totale di 1446 medaglie vinte.
