@@ -466,6 +466,23 @@ ggplot(age,aes(x=Age))+
 Sia per gli atleti di sesso femminile che per quelli di sesso maschile, la distribuzione dell'età è leggermente sbilanciata a destra. La maggior parte degli atleti è nella fascia di età compresa tra 20 e 30 anni, mentre pochi atleti hanno più di 40 anni.
 
 
+```{r}
+
+age_m <- data_events%>%filter(!is.na(Age), Season=='Summer')
+age_m$Medal <- 
+  ifelse(is.na(age_m$Medal),"others",ifelse(age_m$Medal=="Gold","Gold",
+                  ifelse(age_m$Medal=="Silver","Silver","Bronze")))
+
+hcboxplot(x = age_m$Age, var = age_m$Sex, var2 = age_m$Medal, outliers = FALSE) %>% 
+  hc_chart(type = "column")%>%
+  hc_title(text = "Età dei vincitori di medaglia e di tutti gli altri atleti") %>%
+  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_sandsignika())
+
+```
+
+
 ### Età media nei principali sport
 
 ```{r}
@@ -729,25 +746,6 @@ ggplotly(h)
 Gli atleti maschili di basket e pallavolo sono i più alti tra tutti i vincitori di medaglie.
 
 Anche tra le donne vincitrici di medaglie le più alte sono delle squadre di basket e pallavolo.
-
-
-## Distribuzione per età
-
-```{r}
-
-age_m <- data_events%>%filter(!is.na(Age), Season=='Summer')
-age_m$Medal <- 
-  ifelse(is.na(age_m$Medal),"others",ifelse(age_m$Medal=="Gold","Gold",
-                  ifelse(age_m$Medal=="Silver","Silver","Bronze")))
-
-hcboxplot(x = age_m$Age, var = age_m$Sex, var2 = age_m$Medal, outliers = FALSE) %>% 
-  hc_chart(type = "column")%>%
-  hc_title(text = "Età dei vincitori di medaglia e di tutti gli altri atleti") %>%
-  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
-  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
-  hc_add_theme(hc_theme_sandsignika())
-
-```
 
 
 ## Altezza e Peso
