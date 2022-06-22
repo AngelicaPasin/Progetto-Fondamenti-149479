@@ -1,0 +1,828 @@
+---
+title: "Olimpiadi"
+subtitle: "Storia delle Olimpiadi (dal 1896 al 2016)"
+author: "Angelica Pasin - 149479"
+date: "22/06/2022"
+output:
+  ioslides_presentation:
+    css: style.css
+    incremental: yes
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introduzione
+
+## Introduzione
+
+Nelle seguenti analisi ho preso in considerazione tutti i Giochi Olimpici da Atene 1896 a Rio 2016.
+
+Le Olimpiadi sono cresciute così tanto che quasi tutte le nazioni sono ora rappresentate.
+I Giochi si svolgono ogni 4 anni sia per quelli estivi che per quelli invernali.
+Le Olimpiadi estive sono nate nel 1896 ad Atene, mentre quelle invernali sono iniziate nel 1924 a Chamonix (Francia)
+
+Oltre ad offrire ad atleti di tutto il mondo la possibilità di raggiungere una fama internazionale, i Giochi costituiscono anche un'opportunità per la città e il Paese ospitanti di mostrarsi al mondo.
+
+Ho analizzato i fattori che determinano le prestazioni degli atleti vincitori di medaglie dagli altri atleti.
+
+Librerie da utilizzare:
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(viridis)
+library(countrycode)
+library(highcharter)
+library(directlabels)
+library(plotly)
+library(DT)
+library(ggthemes)
+library(ggExtra)
+library(tidyverse)
+
+```
+
+
+## Caricamento e normalizzazione dei dati
+
+### Importazione dei dati:
+
+Per l'analisi ho utlizzato due file CSV, scaricabili da [Kaggle](https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results):
+
+>* "athlete_events.csv" che descrive gli atleti, i giochi a cui hanno partecipato e le medaglie vinte
+>* "noc_regions.csv" che fornisce l'elenco dei 230 Paesi NOC
+
+
+Otteniamo i primi 5 records della tabella contenente tutte le informazioni.
+
+```{r}
+
+data_events <- read.csv("athlete_events.csv")
+
+data_team <- read.csv("noc_regions.csv")
+
+data <- data_events %>%
+  left_join(data_team, by = c("NOC"="NOC"))
+
+head(data, n=5) %>%
+  datatable(class = "table-condensed", 
+      options = list(dom = 'tp', scrollX = TRUE, pageLength = 5))
+
+```
+
+La struttura interna della tabella:
+```{r}
+
+str(data)
+
+```
+
+
+Applichiamo la funzione summary sul dataset.
+Si può notare che ci sono molti valori mancanti in Age (9474), Height (60171) e Weight (62875).
+I valori mancanti verranno rimossi per le analisi successive.
+
+```{r}
+# summary() serve per avere un'idea migliore di come vengono distribuiti i dati,
+# che possono rivelare valori insoliti, dati mancanti...
+
+summary(data)
+
+```
+
+# Analisi e visualizzazioni
+
+## Atleti alle Olimpiadi estive e invernali
+
+```{r}
+
+season = data_events %>% left_join(data_team, by=c("NOC"="NOC"))
+season$notes=NULL
+season = season %>% group_by(Season,Year,Sex) %>% summarize(total=n())
+
+ggplot(season, aes(x=Year, y=total, colour=total, group=Sex))+
+  geom_line(size=1.5)+
+  geom_dl(aes(label = Sex), method = list(dl.trans(x = x + .05), "last.points")) +
+  facet_wrap(~Season)+
+  scale_color_viridis(option = "A")+
+  scale_x_continuous(breaks = seq(1896, 2016, by = 12))+
+  xlab("Anno") + ylab("Atleti")+
+  theme(axis.line = element_line(color="orange", size=1))+
+  theme(panel.background = element_blank())+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 13, face = "bold")) + 
+  ggtitle("Numero di atleti maschi e femmine negli anni",
+          subtitle = "Dal 1896 al 2016") 
+
+```
+
+Il numero di atleti maschi è aumentato da 2500 a 7500 nei Giochi estivi dal 1896.
+Le atlete hanno registrato un forte aumento di numero da 2000, nei Giochi estivi del 1980, a 6000 nei Giochi del 2016.
+
+Tutti i nuovi sport da includere nei Giochi devono contenere eventi femminili.
+
+Il numero di atleti ai Giochi invernali è piccolo rispetto ai Giochi estivi, come previsto.
+La differenza nel numero di atleti maschi e femmine è inferiore rispetto ai Giochi estivi.
+
+
+## Vincitori di medaglie di tutti i tempi
+
+### Uomini
+
+```{r}
+#barplot --> geom_bar()
+
+athlete = data_events %>% filter(!is.na(Medal), Season=='Summer')
+
+athlete = athlete %>%left_join(data_team, by=c("NOC"="NOC"))
+
+athlete = athlete %>% group_by(Sex,Name) %>% summarize(total=n()) %>%
+  arrange(desc(total))
+women = athlete %>% filter(Sex=="F") %>% head(n=30)
+men = athlete %>% filter(Sex=='M') %>% head(n=30)
+
+men$Name <- factor(men$Name, levels = men$Name[order(men$total)])
+
+ggplot(men, aes(Name, total, color=Name, fill=Name)) +
+  geom_bar(position = "stack", width =.6, stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.03, colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background = element_blank())+ 
+  scale_x_discrete() +
+  xlab("Atleta") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face ="bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I migliori vincitori di medaglie",
+          subtitle = "Olimpiadi estive dal 1896 al 2016") 
+
+```
+
+La performance di Michael Fred Phelps si distingue dagli altri atleti con 28 medaglie. Dato il distacco dal secondo, è molto probabile che il risultato di Phelps rimanga il migliore per molto tempo.
+
+Michael Fred Phelps II è un nuotatore americano e l'olimpionico di maggior successo di tutti i tempi. Phelps detiene anche i record di tutti i tempi per medaglie d'oro olimpiche (23), medaglie d'oro olimpiche in eventi individuali (13) e medaglie olimpiche in eventi individuali (16). Quando ha vinto otto medaglie d'oro ai Giochi di Pechino del 2008, Phelps ha battuto il record del 1972 del collega nuotatore americano Mark Spitz di sette primi posti in ogni singola edizione dei Giochi Olimpici. Alle Olimpiadi estive del 2004 ad Atene, Phelps aveva già pareggiato il record di otto medaglie di qualsiasi colore in una singola Olimpiade vincendo sei medaglie d'oro e due di bronzo. Alle Olimpiadi estive del 2012 a Londra, Phelps ha vinto quattro medaglie d'oro e due d'argento, e alle Olimpiadi estive del 2016 a Rio de Janeiro, ha vinto cinque medaglie d'oro e una d'argento. Questo lo ha reso l'atleta di maggior successo dei Giochi per la quarta Olimpiade consecutiva.
+
+La seconda miglior prestazione è di Nikolay Yefimovich Andrianov con 15 medaglie e al quarto posto troviamo lo schermidore italiano Edoardo Mangiarotti, il quale ha collezionato ben 13 medaglie nella sua carriera olimpionica.
+
+Un totale di 21 atleti maschili hanno vinto più di 10 medaglie in tutti i giochi.
+
+
+```{r}
+
+athlete_w = data_events %>% filter(!is.na(Medal), Season=='Winter')
+
+athlete_w = athlete_w %>% left_join(data_team, by=c("NOC"="NOC"))
+
+athlete_w = athlete_w %>%
+  group_by(Sex,Name) %>% summarize(total=n()) %>% arrange(desc(total))
+women_w = athlete_w %>% filter(Sex=="F") %>% head(n=30)
+men_w = athlete_w %>% filter(Sex=='M') %>% head(n=30)
+
+men_w$Name <- factor(men_w$Name,levels = men_w$Name[order(men_w$total)])
+
+ggplot(men_w, aes(Name, total, color=Name, fill=Name)) +
+  geom_bar(position = "stack", width =.6, stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.03, colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background=element_blank())+ 
+  scale_x_discrete() +
+  xlab("Atleta") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I migliori vincitori di medaglie",
+          subtitle = "Olimpiadi invernali dal 1924 al 2016") 
+
+```
+
+Per le olimpiadi invernali in cima alla classifica troviamo Ole Einar Bjrndalen (atleta di Biathlon) con 13 medaglie.
+Si può notare come i migliori atleti dei Giochi estivi siano più medagliati di quelli invernali.
+
+
+### Donne
+
+```{r}
+
+women$Name <- factor(women$Name,levels = women$Name[order(women$total)])
+
+ggplot(women, aes(Name, total, color=Name, fill=Name)) +
+  geom_bar(position = "stack", width =.6, stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.04, colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background=element_blank())+ 
+  scale_x_discrete() +
+  xlab("Atleta") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Le migliori vincitrici di medaglie",
+          subtitle ="Olimpiadi estive dal 1896 al 2016") 
+
+```
+
+La performance di Larysa Semenivna Latynina si distingue dalle altre atlete con 18 medaglie.
+Larisa Semyonovna Latynina è un'ex ginnasta artistica sovietica dell'Ucraina meridionale. Tra il 1956 e il 1964 ha vinto 14 medaglie olimpiche individuali e quattro medaglie a squadre. Detiene il record per il maggior numero di medaglie d'oro olimpiche da parte di un ginnasta, maschio o femmina, con 9. Il suo totale di 18 medaglie olimpiche è stato un record per 48 anni fino a quando Michael Phelps lo ha battuto nel 2012.
+
+La seconda miglior prestazione è di Natalie Anne Coughlin e di altre tre atlete con 12 medaglie.
+
+Un totale di 18 atlete hanno vinto più di 9 medaglie in tutti i giochi.
+
+Per l'Italia troviamo a metà classifica Valentina Vezzali, schermitrice, con 9 medaglie vinte.
+
+
+```{r}
+
+women_w$Name <- factor(women_w$Name, levels = women_w$Name[order(women_w$total)])
+
+ggplot(women_w, aes(Name, total, color=Name, fill=Name)) +
+  geom_bar(position = "stack",  width =.6,stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.04,colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background=element_blank())+ 
+  scale_x_discrete() +
+  xlab("Atleta") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Le migliori vincitrici di medaglie", 
+          subtitle ="Olimpiadi invernali dal 1924 al 2016") 
+
+```
+
+Per le Olimpiadi invernali troviamo 4 atlete in cima alla classifica con un totale di 10 medaglie vinte. Tra esse c'è anche la fondista italiana Stefania Belmondo.
+
+
+## Vincitori più giovani di medaglie
+
+```{r}
+
+age_mi <- data_events %>% filter(!is.na(Medal), Season=='Summer')
+age_mi <- age_mi %>% group_by(Sex,Sport) %>%
+  summarize(Age=min(Age,na.rm = TRUE))
+age_min <- data_events %>%
+  filter(!is.na(Medal), Season=="Summer") %>%
+     right_join(age_mi, by=c("Sex","Sport","Age"))
+
+c <-ggplot(age_min,aes(Sport, Age, color=Sport, fill=Name)) +
+  geom_bar(position = "dodge", width =.5, stat="identity") +
+  coord_flip()+
+  facet_wrap(~Sex)+
+  theme_grey() + 
+  scale_x_discrete() +
+  xlab("Sport") + ylab("Età")+
+  theme(legend.position = "none",
+  axis.text = element_text(size = 6, face = "bold"),
+  plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I vincitori più giovani di medaglie in tutti i Giochi") 
+
+ggplotly(c)
+
+```
+
+Dimitrios Loundras è stato un ginnasta greco che ha gareggiato alle Olimpiadi estive del 1896 ad Atene. Aveva 10 anni quando ha gareggiato nel 1896 e ha vinto una medaglia di bronzo con la sua squadra di ginnastica. Da allora detiene il titolo di più giovane atleta olimpico.
+
+Inge Sorensen, 12 anni, è stata la più giovane medaglia olimpica femminile della storia quando ha portato a casa la medaglia di bronzo nei 200 metri rana alle Olimpiadi del 1936.
+
+
+## Vincitori di medaglie per Paese
+
+```{r}
+
+medals = data_events %>% filter(!is.na(Medal), Season=='Summer')
+
+medals = medals %>% left_join(data_team, by=c("NOC"="NOC"))
+medals$notes = NULL
+medals = medals %>% group_by(region) %>% summarize(total=n()) %>% 
+  arrange(desc(total)) %>% head(n=30)
+
+medals$region <-
+  factor(medals$region, levels = medals$region[order(medals$total)])
+ 
+ggplot(medals, aes(region, total, color=region, fill=region)) +
+  geom_bar(position = "stack", width =.6, stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.03, colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background = element_blank())+ 
+  scale_x_discrete() +
+  xlab("Paese") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I migliori vincitori di medaglie per Paese",
+          subtitle= "Olimpiadi estive dal 1896 al 2016") 
+
+```
+
+
+```{r}
+
+# Il numero totale di medaglie vinte da ciascun Team
+medalCounts <- data_events %>% filter(!is.na(Medal)) %>% 
+  group_by(NOC, Medal, Event, Games) %>%
+  summarize(isMedal=1)
+medalCounts <- medalCounts %>% 
+  group_by(NOC, Medal) %>%
+  summarize(Count= sum(isMedal))
+medalCounts <- left_join(medalCounts,data_team, by= "NOC")
+medalCounts <- medalCounts %>% 
+  mutate (Team = region)
+medalCounts <- medalCounts %>% select( Medal, Team, Count)
+
+# Ordino i Team per numero di medaglie vinte
+levelsTeam <- medalCounts %>%
+  group_by(Team) %>%
+  summarize(Total=sum(Count)) %>%
+  arrange(desc(Total)) %>%
+  select(Team) %>%
+  slice(30:1)
+medalCounts$Team <- factor(medalCounts$Team, levels=levelsTeam$Team)
+medalCounts <- medalCounts %>% filter(Team != "NA")
+
+ggplot(medalCounts, aes(x=Team, y=Count, fill=Medal)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values=c("gold3","gray64","sienna")) +
+  xlab("Paese")+ylab("Medaglie")+
+  theme(axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I migliori vincitori di medaglie per Paese", 
+          subtitle= "Olimpiadi estive dal 1896 al 2016") 
+```
+
+Gli Stati Uniti sono i migliori in assoluto nella storia dei Giochi Olimpici, con oltre 5000 medaglie vinte in varie categorie sportive. Seguono Russia, Germania, Regno Unito e Francia.
+L'Italia si trova al sesto posto con un totale di 1446 medaglie vinte.
+
+Dei 230 paesi NOC partecipanti solo 30 hanno ottenuto oltre 220 medaglie.
+Ciò evidenzia il predominio di alcuni Paesi sulle principali categorie sportive.
+
+
+```{r}
+
+medals_w = data_events %>% filter(!is.na(Medal), Season=='Winter')
+
+medals_w = medals_w %>% left_join(data_team, by=c("NOC"="NOC"))
+medals_w$notes = NULL
+medals_w =medals_w%>%group_by(region)%>%summarize(total=n())%>%
+  arrange(desc(total))%>%head(n=30)
+
+medals_w$region <-
+  factor(medals_w$region,levels = medals_w$region[order(medals_w$total)])
+ 
+ggplot(medals_w,aes(region,total,color=region,fill=region)) +
+  geom_bar(position = "stack", width =.6, stat="identity") +
+  coord_flip()+
+  geom_text(aes(label=total, hjust=-.03, colour="black"), size=3)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background=element_blank())+ 
+  scale_x_discrete() +
+  xlab("Paese") + ylab("Medaglie")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("I migliori vincitori di medaglie per Paese",
+          subtitle= "Olimpiadi invernali dal 1924 al 2016") 
+
+```
+
+Nelle Olimpiadi invernali la Russia, con 759 medaglie vinte, si trova al primo posto, sopra gli Stati Uniti.
+L'Italia si trova all'undicesimo posto con 191.
+
+Come ci si poteva aspettare, in cima alla classifica troviamo i Paesi scandinavi, mentre nazioni molto titolate alle Olimpiadi estive (come Cina e Giappone) sono invece dopo metà classifica con meno di 100 atleti vincitori di medaglie.
+
+
+## Uno sguardo all'Italia
+
+L'Italia, nella storia delle Olimpiadi esive, ha ottenuto 492 ori, 467 argenti e 425 bronzi.
+
+```{r}
+medals_it = data_events%>%
+  filter(!is.na(Medal),Team=='Italy',Season=='Summer') %>%
+  group_by(Medaglia=Medal) %>%
+  summarise(Totale=n()) %>%
+  arrange(-Totale)
+
+ggplot(medals_it, aes(Medaglia, Totale, fill=Medaglia)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(label=Totale),vjust=-.03, size=5)+
+  xlab("Medaglia") + ylab("Totale")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Medaglie vinte dall'Italia",
+          subtitle = "Olimpiadi estive dal 1896 al 2016")
+```
+
+
+Alle Olimpiadi invernali, invece, l'Italia ha ottenuto 43 ori, 41 argenti e 59 bronzi.
+
+```{r}
+medals_itw = data_events%>%
+  filter(!is.na(Medal), Team=='Italy', Season=='Winter') %>%
+  group_by(Medaglia=Medal) %>%
+  summarise(Totale=n()) %>%
+  arrange(-Totale)
+
+ggplot(medals_itw,aes(Medaglia, Totale, fill=Medaglia)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(label=Totale),vjust=-.03, size=5)+
+  xlab("Medaglia") + ylab("Totale")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Medaglie vinte dall'Italia",
+          subtitle = "Olimpiadi invernali dal 1924 al 2016")
+```
+
+
+Si può notare la grande differenza del numero di medaglie rispetto ai Giochi estivi.
+Questa differenza è data sia dal numero di partecipanti che dalla poca varietà di categorie di giochi rispetto a quelle estive. Inoltre, c'è da considerare che le Olimpiadi invernali sono iniziate circa 30 anni dopo e hanno meno visibilità rispetto a quelle estive.
+
+
+## Per Età, Altezza e Peso
+
+```{r}
+
+sport_m <- data_events %>%
+  filter(!is.na(Age),!is.na(Height),!is.na(Weight),
+         !is.na(Medal),Season=='Summer',Year==2016)
+
+a<-ggplot(sport_m, aes(x=Age,y=Height,z=Weight))+
+  geom_point(aes(color=factor(Sport),fill=Name),alpha = 1/1.2)+
+  facet_wrap(~Sex)+
+  theme_dark()+
+  scale_x_continuous() +
+  xlab("Età") + ylab("Altezza")+
+  theme(legend.position = "none",
+  axis.text = element_text(size = 8, face = "bold"),
+  plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Vincitori di medaglie per età, altezza e peso ai Giochi del 2016") 
+
+ggplotly(a)  
+
+```
+
+Alcuni vincitori di medaglie maschili e femminili hanno più di 40 anni.
+Da quest'analisi si può notare che la maggior parte degli atleti maschi sono più alti delle atlete femmine.
+
+
+## Per età
+
+### Distribuzione per età 
+
+```{r}
+
+age = data_events %>% filter(Age<60, Season=='Summer')
+
+ggplot(age,aes(x=Age))+
+  geom_histogram(binwidth = 1, aes(fill = ..count..))+
+  facet_wrap(~Sex)+
+  theme(axis.line = element_line(color = "orange", size=1))+
+  theme(panel.background=element_blank())+ 
+  xlab("Età") + ylab("Numero di atleti")+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Distribuzione per età degli atleti",
+          subtitle = "Olimpiadi estive dal 1896 al 2016") 
+
+```
+
+Sia per gli atleti di sesso femminile che per quelli di sesso maschile, la distribuzione dell'età è leggermente sbilanciata a destra. La maggior parte degli atleti è nella fascia di età compresa tra 20 e 30 anni, mentre pochi atleti hanno più di 40 anni.
+
+
+### Età media nei principali sport
+
+```{r}
+
+age_s <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Swimming")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Age,na.rm = TRUE),1)) 
+age_a <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Athletics")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Age,na.rm = TRUE),1))
+
+age_g <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Gymnastics")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Age,na.rm = TRUE),1))
+
+age_y = data_events%>%filter(Season=='Summer')%>%group_by(Year)%>%
+  summarize(Y=unique(Year))
+
+age_t <- age_y%>%left_join(age_g, by=c("Y"="Year"))
+
+highchart(height = "500px") %>% 
+  hc_title(text = "Età media degli atleti maschi nei 3 sport principali") %>%
+  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_sandsignika()) %>%
+  
+  hc_xAxis(categories = age_y$Y,title = list(text = "Anno")) %>% 
+  hc_add_series(name = "Nuoto", data = age_s$avg)%>% 
+  hc_add_series(name = "Atletica", data = age_a$avg) %>% 
+  hc_add_series(name = "Ginnastica",data = age_g$avg)%>%
+  
+  hc_yAxis(title = list(text = "Età media"),
+           labels = list(format = "{value}"), max = 35) %>%
+   hc_legend(enabled = T, align = "left", verticalAlign = "bottom") 
+  
+
+```
+
+
+L'età media varia per ogni categoria sportiva.
+Diamo uno sguardo alle tre principali categorie di sport.
+
+Possiamo notare che l'età media dei nuotatori è molto bassa, non supera mai i 24 anni.
+L'età media della ginnastica è variata molto nel corso degli anni.
+
+
+### Vincitori più anziani di medaglie 
+
+```{r}
+
+age_mt <- data_events%>%filter(!is.na(Medal),Season=='Summer')
+age_mt <-age_mt%>%group_by(Sex,Sport)%>%
+  summarize(Age=max(Age,na.rm = TRUE))
+age_max <- data_events%>%filter(!is.na(Medal),Season=="Summer")%>%
+  right_join(age_mt,by=c("Sex","Sport","Age"))
+
+
+c <-ggplot(age_max,aes(Sport, Age, color=Sport, fill=Name)) +
+  geom_bar(position = "dodge", width =.5, stat="identity") +
+  coord_flip()+
+  facet_wrap(~Sex)+
+  theme_grey() + 
+  scale_x_discrete() +
+  xlab("Sport")+ylab("Età")+
+  theme(legend.position = "none",
+  axis.text = element_text(size = 6, face = "bold"),
+  plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Vincitori più anziani di medaglie in tutti i Giochi estivi") 
+
+ggplotly(c)
+
+```
+
+
+Il più vecchio olimpionico di sempre è John Copley della Gran Bretagna. Ha vinto una medaglia d'argento a 73 anni, nel 1948, alle competizioni d'arte.
+Il secondo più anziano è Oscar Swahn della Svezia. Aveva 72 anni quando arrivò secondo alle Olimpiadi del 1920 nel tiro a segno.
+
+Nei Giochi femminili, invece, Letitia Marion Hamilton ha vinto una medaglia di bronzo alle competizioni d'arte di Londra nel 1948 all'età di 69 anni.
+
+
+## Per Peso
+
+### Peso medio nei 5 sport principali
+
+```{r}
+
+weight_spw <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Weightlifting")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Weight,na.rm = TRUE),1))
+weight_spb <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Boxing")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Weight,na.rm = TRUE),1))
+
+weight_spd <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Diving")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Weight,na.rm = TRUE),1))
+
+weight_sph <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Hockey")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Weight,na.rm = TRUE),1))
+
+weight_swr <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Wrestling")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Weight,na.rm = TRUE),1))
+
+weight_spw <- age_y%>%left_join(weight_spw, by=c("Y"="Year"))
+weight_spb <- age_y%>%left_join(weight_spb, by=c("Y"="Year"))
+weight_spd <- age_y%>%left_join(weight_spd, by=c("Y"="Year"))
+weight_sph <- age_y%>%left_join(weight_sph, by=c("Y"="Year"))
+weight_swr <- age_y%>%left_join(weight_swr, by=c("Y"="Year"))
+
+highchart(height = "700px") %>% 
+  hc_title(text = "Peso medio degli atleti maschi nei 5 sport principali") %>%
+  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_flat()) %>%
+  hc_xAxis(categories = age_y$Y,title = list(text = "Anno")) %>% 
+  hc_add_series(name = "Sollevamento pesi", data = weight_spw$avg) %>% 
+  hc_add_series(name = "Pugilato", data = weight_spb$avg) %>% 
+  hc_add_series(name = "Tuffi",data = weight_spd$avg) %>%
+  hc_add_series(name = "Hockey",data = weight_sph$avg) %>%
+  hc_add_series(name = "Wrestling",data = weight_swr$avg) %>%
+  
+ hc_yAxis(title = list(text = "Peso medio"),
+           labels = list(format = "{value}"), max = 110) %>%
+   hc_legend(enabled = T, align= "left", verticalAlign = "bottom") 
+  
+
+```
+
+
+Il peso medio in ogni categoria sportiva varia; per sollevamento pesi, wrestling e hockey il peso medio è in crescita da molti anni, mentre quello di pugilato e tuffi è abbastanza costante megli ultimi anni.
+
+
+### Vincitori più pesanti di medaglie
+
+```{r}
+
+weight_mt <- data_events%>%filter(!is.na(Medal),Season=='Summer')%>%
+  group_by(Sex,Sport)%>%summarize(Weight=max(Weight,na.rm = TRUE))%>%
+  arrange(desc(Weight))
+
+weight_mt<- weight_mt[-c(76:87),]
+
+weight_max <- data_events%>%filter(!is.na(Medal),Season=="Summer")%>%
+  right_join(weight_mt,by=c("Sex","Sport","Weight"))
+
+
+c <-ggplot(weight_max,aes(Sport,Weight, color=Name,fill=Sport)) +
+  geom_bar(position = "dodge", width =.7, stat="identity") +
+  coord_flip()+
+  facet_wrap(~Sex)+
+  theme_minimal() + scale_colour_tableau()+
+  scale_x_discrete() +
+  xlab("Sport")+ylab("Peso")+
+  theme(legend.position = "none",
+  axis.text = element_text(size = 6, face = "bold"),
+  plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Vincitori più pesanti di medaglie in tutti i Giochi estivi") 
+
+ggplotly(c)
+ 
+```
+
+
+La donna, vincitrice di medaglia, più pesante è Olha Vasylivna Korobka, la quale pesa 167 kg.
+Per gli uomini il più pesante è Christopher Taylor (Wrestling), il quale ha un peso di ben 182 kg.
+
+Notiamo come la donna che pesa di più, nel Wrestling, pesa solo 77 kg.
+
+Dal grafico si può vedere che in linea di massima i maschi pesano più delle donne, come previsto.
+
+
+## Per Altezza
+
+### Altezza media nei 5 sport principali
+
+```{r}
+
+height_spw <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Volleyball")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Height,na.rm = TRUE),1))
+height_spb <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Basketball")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Height,na.rm = TRUE),1))
+
+height_spd <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Football")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Height,na.rm = TRUE),1))
+
+height_sph <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Rowing")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Height,na.rm = TRUE),1))
+
+height_swr <- data_events%>%
+  filter(Sex=="M",Season=='Summer',Sport=="Athletics")%>%
+  group_by(Year)%>%summarize(avg=round(mean(Height,na.rm = TRUE),1))
+
+height_spw <- age_y%>%left_join(height_spw, by=c("Y"="Year"))
+height_spb <- age_y%>%left_join(height_spb, by=c("Y"="Year"))
+height_spd <- age_y%>%left_join(height_spd, by=c("Y"="Year"))
+height_sph <- age_y%>%left_join(height_sph, by=c("Y"="Year"))
+height_swr <- age_y%>%left_join(height_swr, by=c("Y"="Year"))
+
+highchart(height = "700px") %>% 
+  hc_title(text = "Altezza media degli atleti maschi nei 5 sport principali") %>%
+  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_db()) %>%
+  hc_xAxis(categories = age_y$Y,title = list(text = "Anno")) %>% 
+  hc_add_series(name = "Pallavolo", data = height_spw$avg)%>% 
+  hc_add_series(name = "Pallacanestro", data = height_spb$avg) %>% 
+  hc_add_series(name = "Calcio",data = height_spd$avg)%>%
+  hc_add_series(name = "Canottaggio", data = height_sph$avg)%>%
+  hc_add_series(name = "Atletica", data = height_swr$avg)%>%
+  
+  hc_yAxis(title = list(text = "Altezza media"),
+           labels = list(format = "{value}"), max = 200) %>%
+  hc_legend(enabled = T, align = "left", verticalAlign = "bottom") 
+  
+
+```
+
+
+L'altezza media degli atleti di basket, pallavolo e canottaggio sta mostrando un forte aumento. L'altezza media più alta della categoria di atletica è 181,8, mentre per gli atleti di basket è 199,50.
+
+L'altezza media per la categoria di atletica leggera è quasi la stessa dai giochi del 1896.
+
+
+### Altezza massima 
+
+```{r}
+# scatterplot --> geom_point()
+
+height_ht <- data_events%>%
+  filter(!is.na(Medal),Season=='Summer')%>%group_by(Sex,Sport)%>%
+  summarize(Height=round(max(Height,na.rm = TRUE),0))%>%
+  arrange(desc(Height))
+height_ht <- height_ht[-c(78:87),]
+
+height_max <- data_events%>%filter(!is.na(Medal),Season=="Summer")%>%
+  right_join(height_ht,by=c("Sex","Sport","Height"))
+
+h<-ggplot(height_max, aes(x=Age,y=Height,z=Weight))+
+  geom_point(aes(color=factor(Sport),fill=Name),alpha = 1/.9)+
+  facet_wrap(~Sex)+
+  theme_dark() +
+  scale_x_continuous() +
+  xlab("Età") + ylab("Altezza")+
+  theme(legend.position = "none",
+  axis.text = element_text(size = 8, face = "bold"),
+  plot.title = element_text(size = 16, face = "bold")) + 
+  ggtitle("Altezza massima dei vincitori di medaglie in tutti i Giochi") 
+
+ggplotly(h)  
+
+
+```
+
+
+Gli atleti maschili di basket e pallavolo sono i più alti tra tutti i vincitori di medaglie.
+
+Anche tra le donne vincitrici di medaglie le più alte sono delle squadre di basket e pallavolo.
+
+
+## Distribuzione per età
+
+```{r}
+
+age_m <- data_events%>%filter(!is.na(Age), Season=='Summer')
+age_m$Medal <- 
+  ifelse(is.na(age_m$Medal),"others",ifelse(age_m$Medal=="Gold","Gold",
+                  ifelse(age_m$Medal=="Silver","Silver","Bronze")))
+
+hcboxplot(x = age_m$Age, var = age_m$Sex, var2 = age_m$Medal, outliers = FALSE) %>% 
+  hc_chart(type = "column")%>%
+  hc_title(text = "Età dei vincitori di medaglia e di tutti gli altri atleti") %>%
+  hc_subtitle(text = "Olimpiadi estive dal 1896 al 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_sandsignika())
+
+```
+
+
+## Altezza e Peso
+
+```{r}
+
+Weight_ht<- data_events%>%
+  filter(!is.na(Weight), !is.na(Height), !is.na(Medal),
+         Season=='Summer', Year==2016)
+
+
+x <- c("Height", "Weight")
+y <- sprintf("{point.%s:.2f}", c("Height", "Weight"))
+tltip <- tooltip_table(x, y)
+
+
+hchart(Weight_ht, "scatter", hcaes(x = Weight, y = Height, group = Sex)) %>% 
+  hc_tooltip(useHTML = TRUE, headerFormat = "", pointFormat = tltip) %>% 
+  hc_title(text = "Altezza e Peso dei vincitori di medaglie") %>%
+  hc_subtitle(text = "Olimpiadi estive del 2016") %>%
+  hc_credits(enabled = TRUE, text = " ", style = list(fontSize = "10px")) %>%
+  hc_add_theme(hc_theme_538())
+
+```
+
+
+Si può notare una correlazione positiva tra peso e altezza dell'atleta.
+Notiamo anche che gli uomini sono in media più alti e pesano di più delle donne.
+
+
+# Conclusioni
+
+## Conclusioni
+
+I valori mancanti hanno un impatto sull'analisi dei dati e ce ne sono parecchi nelle variabili Età, Altezza e Peso. Dato il set di dati, i valori mancanti sono stati rimossi dall'analisi.
+
+I dati sugli eventi a squadre non vengono forniti, quindi il numero di atleti vincitori di medaglie e le medaglie vinte da un paese non sono gli stessi.
+
+Le Olimpiadi sono dominate da pochi Paesi, come si osserva nella maggior parte delle classifiche. I paesi sottosviluppati dell'Africa, dell'Asia e dell'America Latina hanno ottenuto scarsi risultati.
+
+L'Italia si presenta molto bene, pur avendo molti meno atleti rispetto ad altre nazioni più popolate.
+
+
